@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """usage: meal_planner.py FILE [OPTIONS]
 
 Create meal plans from recipes in CSV formatted file
@@ -48,9 +49,9 @@ def print_help_and_exit(exit_code=0):
 def parse_args(args):
     """Parse command line arguments."""
     try:
-        fname = args[0]
-        if not os.path.isfile(fname):
-            raise FileNotFoundError("Unknown file: %s." % fname)
+        fpath = args[0]
+        if not os.path.isfile(fpath):
+            raise FileNotFoundError("Unknown file: %s." % fpath)
         opts = args[1:]
         opt_names = [o.lstrip('-') for o in opts[:-1:2]]
         opt_values = opts[1::2]
@@ -60,21 +61,23 @@ def parse_args(args):
         print("Error parsing arguments: %s\n%s\n\n" % (args, e))
         print_help_and_exit(1)
 
-    print("\n---", file=sys.stderr)
-    print("Options: %s" % (opts,), file=sys.stderr)
-    print("Data:%s" % (fname,), file=sys.stderr)
-    print("---\n", file=sys.stderr)
+    sys.stderr.write("\n---\n)
+    sys.stderr.write("Options: %s\n" % (parsed,))
+    sys.stderr.write("Data:%s\n" % (fpath,))
+    sys.stderr.write("---\n\n)
 
-    return fname, parsed
+    return fpath, parsed
 
 
 def load_data(fpath):
     """Load data from CSV file."""
     with open(fpath, 'r') as f:
-        fields, *data = [
+        rows = [
             [f.strip() for f in l.strip().split(',')]
             for l in f
         ]
+    fields = rows[0]
+    data = rows[1:]
     return (dict(zip(fields, r)) for r in data)
 
 
@@ -185,10 +188,10 @@ if __name__ == '__main__':
     if not args or '-h' in args or '--help' in args:
         print_help_and_exit(0)
 
-    fname, options = parse_args(args)
-    print("Creating awesome meal plans:\n", file=sys.stderr)
+    fpath, options = parse_args(args)
+    sys.stderr.write("Creating awesome meal plans:\n\n)
 
-    records = load_data(fname)
+    records = load_data(fpath)
     cleaned = clean(records)
     combined = combine(cleaned)
     plans = assemble(combined)
