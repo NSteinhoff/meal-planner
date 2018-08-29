@@ -61,10 +61,10 @@ def parse_args(args):
         print("Error parsing arguments: %s\n%s\n\n" % (args, e))
         print_help_and_exit(1)
 
-    sys.stderr.write("\n---\n)
+    sys.stderr.write("\n---\n")
     sys.stderr.write("Options: %s\n" % (parsed,))
     sys.stderr.write("Data:%s\n" % (fpath,))
-    sys.stderr.write("---\n\n)
+    sys.stderr.write("---\n\n")
 
     return fpath, parsed
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         print_help_and_exit(0)
 
     fpath, options = parse_args(args)
-    sys.stderr.write("Creating awesome meal plans:\n\n)
+    sys.stderr.write("Creating awesome meal plans:\n\n")
 
     records = load_data(fpath)
     cleaned = clean(records)
