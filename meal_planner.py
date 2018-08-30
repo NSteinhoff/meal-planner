@@ -34,6 +34,8 @@ import os
 import sys
 import json
 
+from pprint import pprint as pp
+
 
 PRECISION = 2
 MAX_MEALS = 5
@@ -85,12 +87,14 @@ def clean(records):
     """Add derived data to records"""
     def _clean(r):
         p, c, f = map(float, [r['protein'], r['carbs'], r['fat']])
+        count = int(r.get('count', '') or '1')
         return {
             'name': r['name'],
             'kcal': rnd(calories(p, c, f)),
             'p': rnd(p),
             'f': rnd(f),
-            'c': rnd(c)
+            'c': rnd(c),
+            'count': count
         }
 
     return (_clean(r) for r in records)
@@ -98,10 +102,20 @@ def clean(records):
 
 def combine(records):
     """Create all possible combinations"""
-    recs = list(records)
+    recs = list(sorted(records, key=lambda x: x['kcal'], reverse=True))
+    # Intersperse high with low calorie foods, allow for more diverse
+    # combinations to occurr earlier.
+    desc = recs[::2]
+    asc = recs[1::2][::-1]
+    interspersed = itertools.chain.from_iterable(zip(desc, asc))
+
+    mults = list(itertools.chain.from_iterable(
+        [r] * r['count'] for r in interspersed
+    ))
+
     cmbs = (
-        list(itertools.combinations(recs, l))
-        for l in range(1, len(recs))
+        itertools.combinations(mults, l)
+        for l in range(1, len(mults))
     )
     return (c for cs in cmbs for c in cs)
 
@@ -180,7 +194,10 @@ def predicates(options):
 
 def matches(plans, criteria):
     """Find plans matching the criteria."""
-    return (plan for plan in plans if all(c(plan) for c in criteria))
+    return (
+        dict(plan, combination=i) for i, plan in enumerate(plans)
+        if all(c(plan) for c in criteria)
+    )
 
 
 if __name__ == '__main__':
