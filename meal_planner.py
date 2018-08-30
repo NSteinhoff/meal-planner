@@ -20,7 +20,7 @@ Examples:
   -f :95 -> maximum of 95 grams of fat
 
 Options:
-  -n                   Maximum number of meals in plan (default=5).
+  -n                   Number of meals MIN:MAX (default=3:5).
   -kcal                Calories (kcal) MIN:MAX
   -p                   Protein (g) MIN:MAX
   -c                   Carbs (g) MIN:MAX
@@ -38,8 +38,9 @@ from pprint import pprint as pp
 
 
 PRECISION = 2
-MAX_MEALS = 5
+MEALS = '3:5'
 MAX_RESULTS = 10
+(MIN_MEALS, MAX_MEALS) = (1, 10)
 
 
 def print_help_and_exit(exit_code=0):
@@ -100,7 +101,7 @@ def clean(records):
     return (_clean(r) for r in records)
 
 
-def combine(records):
+def combine(records, n):
     """Create all possible combinations"""
     recs = list(sorted(records, key=lambda x: x['kcal'], reverse=True))
     # Intersperse high with low calorie foods, allow for more diverse
@@ -115,7 +116,7 @@ def combine(records):
 
     cmbs = (
         itertools.combinations(mults, l)
-        for l in range(1, len(mults))
+        for l in range(*n)
     )
     return (c for cs in cmbs for c in cs)
 
@@ -185,11 +186,9 @@ def predicates(options):
         for k, v in options.items()
         if k in {'p', 'c', 'f', 'kcal', 'pi'}
     }
-    max_meals = int(options.get('n', MAX_MEALS))
-    num_meals = [lambda x: len(x['meals']) <= max_meals]
     macro_ranges = [make_predicate(k, v) for k, v in ranges.items()]
 
-    return num_meals + macro_ranges
+    return macro_ranges
 
 
 def matches(plans, criteria):
@@ -210,7 +209,15 @@ if __name__ == '__main__':
 
     records = load_data(fpath)
     cleaned = clean(records)
-    combined = combine(cleaned)
+
+    n_meals = (
+        int(x) if x else y for x, y in
+        itertools.zip_longest(
+            options.get('n', MEALS).split(':'),
+            (MIN_MEALS, MAX_MEALS)
+        )
+    )
+    combined = combine(cleaned, n=n_meals)
     plans = assemble(combined)
     results = matches(plans, predicates(options))
 
