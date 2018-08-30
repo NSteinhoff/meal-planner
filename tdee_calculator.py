@@ -134,21 +134,24 @@ def tdee_from_data(fpath):
         dict(x, daily_surplus=x['surplus'] / 7)
         for x in with_surplus
     )
-    with_expended, with_expended_2 = tee((
+    with_expended = [
         dict(x, expended=x['kcal'] - x['daily_surplus'])
         for x in with_daily_surplus
-    ), 2)
+    ]
+    expended = [e['expended'] for e in with_expended]
+    # Multiply weights by very small number so that the accumulated values
+    # do not become too big.
+    weights = [i * sys.float_info.min for i, _ in enumerate(expended, 1)]
+    weighted = (x * w for x, w in zip(expended, weights))
+    accumulated = accumulate(weighted)
+    tdees = (x / sum(weights[:i]) for i, x in enumerate(accumulated, 1))
 
-    tdees = (
-        expended / i for i, expended in 
-        enumerate(accumulate(e['expended'] for e in with_expended_2), 1)
-    )
     with_tdee = (
         dict(x, tdee=tdee) for x, tdee in zip(with_expended, tdees)
     )
     results = [(x['end'], x['tdee']) for x in with_tdee]
     for d, t in results:
-        print("%s,%.2f" % (d,t))
+        print("%s, %.2f" % (d,t))
 
     date, tdee = results[-1]
     sys.stderr.write("\nYour TDEE as of %s is estimated to be around: %.2f\n" % (date, tdee))
