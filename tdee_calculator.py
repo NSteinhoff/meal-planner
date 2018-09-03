@@ -143,8 +143,9 @@ def tdee_from_data(fpath):
     # do not become too big.
     weights = [i * sys.float_info.min for i, _ in enumerate(expended, 1)]
     weighted = (x * w for x, w in zip(expended, weights))
-    accumulated = accumulate(weighted)
-    tdees = (x / sum(weights[:i]) for i, x in enumerate(accumulated, 1))
+    acc_weighted = accumulate(weighted)
+    acc_weights = accumulate(weights)
+    tdees = (x / w for x, w in zip(acc_weighted, acc_weights))
 
     with_tdee = (
         dict(x, tdee=tdee) for x, tdee in zip(with_expended, tdees)
