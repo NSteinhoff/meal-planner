@@ -27,20 +27,42 @@ Options:
   -f                   Fat (g) MIN:MAX
   -pi                  Fraction of calories from protein MIN:MAX
   --max-results        Maximum number of plans to produce (default=10).
+  --timeout            Timeout in seconds, when no matching plan can be found.
   -h, --help           Show this message and exit.
 """
 import itertools
 import os
 import sys
 import json
+import time
 
 from pprint import pprint as pp
 
+# TODO: "mainstays" -> meals that should be part of every plan
+# TODO: smarter combination generation
 
 PRECISION = 2
 MEALS = '3:5'
 MAX_RESULTS = 10
+TIMEOUT = 1
 (MIN_MEALS, MAX_MEALS) = (1, 10)
+
+
+def timer():
+    """Iterable that returns the time since the first iteration."""
+    start = time.time()
+    while True:
+        yield time.time() - start
+
+
+def timeout(iterable, timeout):
+    """Timeout the iteration of an iterable."""
+    timed = zip(iterable, timer())
+    for e, t in timed:
+        if t < timeout:
+            yield e
+        else:
+            return e
 
 
 def print_help_and_exit(exit_code=0):
@@ -205,7 +227,7 @@ if __name__ == '__main__':
         print_help_and_exit(0)
 
     fpath, options = parse_args(args)
-    sys.stderr.write("Creating awesome meal plans:\n\n")
+    sys.stderr.write("Creating awesome meal plans...\n\n")
 
     records = load_data(fpath)
     cleaned = clean(records)
@@ -219,10 +241,15 @@ if __name__ == '__main__':
     )
     combined = combine(cleaned, n=n_meals)
     plans = assemble(combined)
-    results = matches(plans, predicates(options))
+    timed = timeout(plans, float(options.get('timeout', TIMEOUT)))
+    results = matches(timed, predicates(options))
 
     max_results = int(options.get('max-results', MAX_RESULTS))
-    json.dump(
-        list(itertools.islice(results, max_results)),
-        sys.stdout, indent=4
-    )
+    top = list(itertools.islice(results, max_results))
+    if not top:
+        print(f"Unable to find a plan for your settings.",
+              file=sys.stderr)
+        print(f"Try relaxing the criteria, or increasing the timeout.",
+              file=sys.stderr)
+    else:
+        json.dump(top, sys.stdout, indent=4)
