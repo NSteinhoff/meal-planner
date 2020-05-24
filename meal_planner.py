@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""usage: meal_planner.py FILE [OPTIONS]
+"""usage: meal_planner.py RECIPE_FILE [OPTIONS]
 
 Create meal plans from recipes in CSV formatted file
 and print a JSON array with the results to stdout.
@@ -42,7 +42,7 @@ from pprint import pprint as pp
 # TODO: smarter combination generation
 
 PRECISION = 2
-MEALS = '3:5'
+MEALS = "3:5"
 MAX_RESULTS = 10
 TIMEOUT = 1
 (MIN_MEALS, MAX_MEALS) = (1, 10)
@@ -78,7 +78,7 @@ def parse_args(args):
         if not os.path.isfile(fpath):
             raise FileNotFoundError("Unknown file: %s." % fpath)
         opts = args[1:]
-        opt_names = [o.lstrip('-') for o in opts[:-1:2]]
+        opt_names = [o.lstrip("-") for o in opts[:-1:2]]
         opt_values = opts[1::2]
         parsed = dict(zip(opt_names, opt_values))
     except Exception as e:
@@ -96,69 +96,59 @@ def parse_args(args):
 
 def load_data(fpath):
     """Load data from CSV file."""
-    with open(fpath, 'r') as f:
-        rows = [
-            [f.strip() for f in l.strip().split(',')]
-            for l in f
-        ]
-    fields = rows[0]
+    with open(fpath, "r") as file:
+        rows = [[field.strip() for field in line.strip().split(",")] for line in file]
+    header = rows[0]
     data = rows[1:]
-    return (dict(zip(fields, r)) for r in data)
+    return (dict(zip(header, row)) for row in data)
 
 
 def clean(records):
     """Add derived data to records"""
-    def _clean(r):
-        p, c, f = map(float, [r['protein'], r['carbs'], r['fat']])
-        count = int(r.get('count', '') or '1')
+
+    def derive(r):
+        p, c, f = map(float, [r["protein"], r["carbs"], r["fat"]])
+        count = int(r.get("count", "") or "1")
         return {
-            'name': r['name'],
-            'kcal': rnd(calories(p, c, f)),
-            'p': rnd(p),
-            'f': rnd(f),
-            'c': rnd(c),
-            'count': count
+            "name": r["name"],
+            "kcal": rnd(calories(p, c, f)),
+            "p": rnd(p),
+            "f": rnd(f),
+            "c": rnd(c),
+            "count": count,
         }
 
-    return (_clean(r) for r in records)
+    return map(derive, records)
 
 
 def combine(records, n):
     """Create all possible combinations"""
-    recs = list(sorted(records, key=lambda x: x['kcal'], reverse=True))
+    recs = list(sorted(records, key=lambda x: x["kcal"], reverse=True))
     # Intersperse high with low calorie foods, allow for more diverse
     # combinations to occurr earlier.
     desc = recs[::2]
     asc = recs[1::2][::-1]
     interspersed = itertools.chain.from_iterable(zip(desc, asc))
 
-    mults = list(itertools.chain.from_iterable(
-        [r] * r['count'] for r in interspersed
-    ))
+    mults = list(itertools.chain.from_iterable([r] * r["count"] for r in interspersed))
 
-    cmbs = (
-        itertools.combinations(mults, l)
-        for l in range(*n)
-    )
+    cmbs = (itertools.combinations(mults, l) for l in range(*n))
     return (c for cs in cmbs for c in cs)
 
 
 def totals(meals):
     """Get the total macros and other statistics of the
     meal plan."""
-    macros = {
-        k: rnd(sum(m[k] for m in meals))
-        for k in {'p', 'f', 'c'}
-    }
+    macros = {k: rnd(sum(m[k] for m in meals)) for k in {"p", "f", "c"}}
     kcal = calories(**macros)
 
     return {
-        'kcal': kcal,
-        'pi': rnd(macros['p'] * 4 / kcal),
-        'meals': [m['name'] for m in meals],
-        'kcal %': [rnd(m['kcal'] / kcal) for m in meals],
-        'details': list(meals),
-        **macros
+        "kcal": kcal,
+        "pi": rnd(macros["p"] * 4 / kcal),
+        "meals": [m["name"] for m in meals],
+        "kcal %": [rnd(m["kcal"] / kcal) for m in meals],
+        "details": list(meals),
+        **macros,
     }
 
 
@@ -179,6 +169,7 @@ def calories(p, c, f):
 
 class Range:
     """Numeric range."""
+
     def __init__(self, start=None, stop=None):
         self.start = start
         self.stop = stop
@@ -187,18 +178,18 @@ class Range:
         return "Range(start=%s, stop=%s)" % (self.start, self.stop)
 
     def __contains__(self, item):
-        return (
-            (self.start is None or item >= self.start) and
-            (self.stop is None or item <= self.stop)
+        return (self.start is None or item >= self.start) and (
+            self.stop is None or item <= self.stop
         )
 
     @classmethod
     def parse(cls, s):
-        return Range(*(None if not p else float(p) for p in s.split(':')))
+        return Range(*(None if not p else float(p) for p in s.split(":")))
 
 
 def predicates(options):
     """Create predicates from the supplied options."""
+
     def make_predicate(key, range):
         """Make a range predicate"""
         return lambda x: x[key] in range
@@ -206,7 +197,7 @@ def predicates(options):
     ranges = {
         k: Range.parse(v)
         for k, v in options.items()
-        if k in {'p', 'c', 'f', 'kcal', 'pi'}
+        if k in {"p", "c", "f", "kcal", "pi"}
     }
     macro_ranges = [make_predicate(k, v) for k, v in ranges.items()]
 
@@ -216,15 +207,16 @@ def predicates(options):
 def matches(plans, criteria):
     """Find plans matching the criteria."""
     return (
-        dict(plan, combination=i) for i, plan in enumerate(plans)
+        dict(plan, combination=i)
+        for i, plan in enumerate(plans)
         if all(c(plan) for c in criteria)
     )
 
 
-if __name__ == '__main__':
+def main():
     args = sys.argv[1:]
-    if not args or '-h' in args or '--help' in args:
-        print_help_and_exit(0)
+    if not args or "-h" in args or "--help" in args:
+        print_help_and_exit(0 if args else 1)
 
     fpath, options = parse_args(args)
     sys.stderr.write("Creating awesome meal plans...\n\n")
@@ -233,23 +225,24 @@ if __name__ == '__main__':
     cleaned = clean(records)
 
     n_meals = (
-        int(x) if x else y for x, y in
-        itertools.zip_longest(
-            options.get('n', MEALS).split(':'),
-            (MIN_MEALS, MAX_MEALS)
+        int(x) if x else y
+        for x, y in itertools.zip_longest(
+            options.get("n", MEALS).split(":"), (MIN_MEALS, MAX_MEALS)
         )
     )
     combined = combine(cleaned, n=n_meals)
     plans = assemble(combined)
-    timed = timeout(plans, float(options.get('timeout', TIMEOUT)))
+    timed = timeout(plans, float(options.get("timeout", TIMEOUT)))
     results = matches(timed, predicates(options))
 
-    max_results = int(options.get('max-results', MAX_RESULTS))
+    max_results = int(options.get("max-results", MAX_RESULTS))
     top = list(itertools.islice(results, max_results))
     if not top:
-        print(f"Unable to find a plan for your settings.",
-              file=sys.stderr)
-        print(f"Try relaxing the criteria, or increasing the timeout.",
-              file=sys.stderr)
+        print(f"Unable to find a plan for your settings.", file=sys.stderr)
+        print(f"Try relaxing the criteria, or increasing the timeout.", file=sys.stderr)
     else:
         json.dump(top, sys.stdout, indent=4)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,4 +1,4 @@
-#/usr/bin/env python
+# /usr/bin/env python
 # -*- coding: utf-8 -*-
 """usage: tdee_calculator.py FILE [OPTIONS]
 
@@ -28,7 +28,7 @@ def print_help_and_exit(exit_code=0):
 
 def _parse_options(opts):
     try:
-        opt_names = [o.lstrip('-') for o in opts[:-1:2]]
+        opt_names = [o.lstrip("-") for o in opts[:-1:2]]
         opt_values = opts[1::2]
         parsed = dict(zip(opt_names, opt_values))
     except Exception as e:
@@ -36,16 +36,10 @@ def _parse_options(opts):
         print("Error parsing arguments: %s\n%s\n\n" % (opts, e))
         print_help_and_exit(1)
 
-    valid = {'weight', 'activity-level', 'body-fat'}
-    required = {'weight', 'activity-level', 'body-fat'}
-    missing = {
-        option for option in required
-        if option not in parsed
-    }
-    invalid = {
-        option for option in parsed
-        if option not in valid
-    }
+    valid = {"weight", "activity-level", "body-fat"}
+    required = {"weight", "activity-level", "body-fat"}
+    missing = {option for option in required if option not in parsed}
+    invalid = {option for option in parsed if option not in valid}
     if missing:
         print("Missign options: %s" % missing)
         print_help_and_exit(1)
@@ -74,17 +68,17 @@ def parse_args(args):
 def tdee_from_params(options):
     """Calculate TDEE base on input parameters."""
     activity_factors = {
-        'sedentary': 1.2,
-        'light': 1.375,
-        'moderate': 1.55,
-        'heavy': 1.725,
-        'athelete': 1.9,
+        "sedentary": 1.2,
+        "light": 1.375,
+        "moderate": 1.55,
+        "heavy": 1.725,
+        "athelete": 1.9,
     }
 
-    activity = options['activity-level']
+    activity = options["activity-level"]
     activity_factor = activity_factors[activity]
-    weight = float(options['weight']) 
-    body_fat = float(options['body-fat'])
+    weight = float(options["weight"])
+    body_fat = float(options["body-fat"])
     lean_body_mass = weight * (1 - (body_fat / 100))
 
     bmr = 370 + lean_body_mass * 21.6
@@ -98,47 +92,33 @@ def tdee_from_params(options):
 def tdee_from_data(fpath):
     data = list(load_data(fpath))
     lag_kcal = list(
-        dict(now, kcal=yesterday['kcal'])
-        for now, yesterday
-        in zip(*(islice(d, lag, None) for d, lag
-                 in zip(tee(data, 2), (1, 0))))
+        dict(now, kcal=yesterday["kcal"])
+        for now, yesterday in zip(
+            *(islice(d, lag, None) for d, lag in zip(tee(data, 2), (1, 0)))
+        )
     )
-    windows = zip(
-        *(islice(d, i, None) for i, d
-          in enumerate(tee(lag_kcal, 7)))
-    )
+    windows = zip(*(islice(d, i, None) for i, d in enumerate(tee(lag_kcal, 7))))
     averages = (
         {
-            'start': window[0]['date'],
-            'end': window[-1]['date'],
-            'kcal': sum([float(x['kcal']) for x in window]) / 7,
-            'kg': sum([float(x['kg']) for x in window]) / 7,
+            "start": window[0]["date"],
+            "end": window[-1]["date"],
+            "kcal": sum([float(x["kcal"]) for x in window]) / 7,
+            "kg": sum([float(x["kg"]) for x in window]) / 7,
         }
         for window in windows
     )
 
-    with_previous = zip(
-        *(islice(x, i, None) for x, i
-          in zip(tee(averages, 2), (7, 0)))
-    )
+    with_previous = zip(*(islice(x, i, None) for x, i in zip(tee(averages, 2), (7, 0))))
 
     deltas = (
-        dict(now, delta=now['kg'] - previous['kg'])
-        for now, previous in with_previous
+        dict(now, delta=now["kg"] - previous["kg"]) for now, previous in with_previous
     )
-    with_surplus = (
-        dict(x, surplus=x['delta'] * KCAL_IN_KG)
-        for x in deltas
-    )
-    with_daily_surplus = (
-        dict(x, daily_surplus=x['surplus'] / 7)
-        for x in with_surplus
-    )
+    with_surplus = (dict(x, surplus=x["delta"] * KCAL_IN_KG) for x in deltas)
+    with_daily_surplus = (dict(x, daily_surplus=x["surplus"] / 7) for x in with_surplus)
     with_expended = [
-        dict(x, expended=x['kcal'] - x['daily_surplus'])
-        for x in with_daily_surplus
+        dict(x, expended=x["kcal"] - x["daily_surplus"]) for x in with_daily_surplus
     ]
-    expended = [e['expended'] for e in with_expended]
+    expended = [e["expended"] for e in with_expended]
     # Multiply weights by very small number so that the accumulated values
     # do not become too big.
     weights = [i * sys.float_info.min for i, _ in enumerate(expended, 1)]
@@ -147,32 +127,29 @@ def tdee_from_data(fpath):
     acc_weights = accumulate(weights)
     tdees = (x / w for x, w in zip(acc_weighted, acc_weights))
 
-    with_tdee = (
-        dict(x, tdee=tdee) for x, tdee in zip(with_expended, tdees)
-    )
-    results = [(x['end'], x['tdee']) for x in with_tdee]
+    with_tdee = (dict(x, tdee=tdee) for x, tdee in zip(with_expended, tdees))
+    results = [(x["end"], x["tdee"]) for x in with_tdee]
     for d, t in results:
-        print("%s, %.2f" % (d,t))
+        print("%s, %.2f" % (d, t))
 
     date, tdee = results[-1]
-    sys.stderr.write("\nYour TDEE as of %s is estimated to be around: %.2f\n" % (date, tdee))
+    sys.stderr.write(
+        "\nYour TDEE as of %s is estimated to be around: %.2f\n" % (date, tdee)
+    )
 
 
 def load_data(fpath):
     """Load data from CSV file."""
-    with open(fpath, 'r') as f:
-        rows = [
-            [f.strip() for f in l.strip().split(',')]
-            for l in f
-        ]
+    with open(fpath, "r") as f:
+        rows = [[f.strip() for f in l.strip().split(",")] for l in f]
     fields = rows[0]
     data = rows[1:]
     return (dict(zip(fields, r)) for r in data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = sys.argv[1:]
-    if not args or '-h' in args or '--help' in args:
+    if not args or "-h" in args or "--help" in args:
         print_help_and_exit(0)
 
     fpath, params = parse_args(args)

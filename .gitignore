@@ -2,3 +2,4 @@ Pipfile*
 .tags
 .python-version
 .cpcache
+.build/
