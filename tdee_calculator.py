@@ -1,8 +1,9 @@
 # /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""usage: tdee_calculator.py FILE [OPTIONS]
 
-Calculate Total Daily Energy Expenditure (TDEE).
+"""Calculate Total Daily Energy Expenditure (TDEE).
+
+usage: tdee_calculator.py FILE [OPTIONS]
 
 Options:
     --weight                    Weight in kilograms
@@ -10,11 +11,13 @@ Options:
     --body-fat                  Body fat percentage
     -h, --help
 """
-import collections
-import itertools
-from itertools import islice, tee, accumulate
 import os
 import sys
+from itertools import (
+    accumulate,
+    islice,
+    tee,
+)
 
 
 KCAL_IN_KG = 7700
@@ -90,6 +93,7 @@ def tdee_from_params(options):
 
 
 def tdee_from_data(fpath):
+    """Calculate TDEE from data in file."""
     data = list(load_data(fpath))
     lag_kcal = list(
         dict(now, kcal=yesterday["kcal"])

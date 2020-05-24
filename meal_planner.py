@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""usage: meal_planner.py RECIPE_FILE [OPTIONS]
+
+"""Create meal plans.
+
+usage: meal_planner.py RECIPE_FILE [OPTIONS]
 
 Create meal plans from recipes in CSV formatted file
 and print a JSON array with the results to stdout.
@@ -31,12 +34,10 @@ Options:
   -h, --help           Show this message and exit.
 """
 import itertools
+import json
 import os
 import sys
-import json
 import time
-
-from pprint import pprint as pp
 
 # TODO: "mainstays" -> meals that should be part of every plan
 # TODO: smarter combination generation
@@ -49,30 +50,55 @@ TIMEOUT = 1
 
 
 def timer():
-    """Iterable that returns the time since the first iteration."""
+    """Return the time since the first iteration.
+
+    Yields:
+        int: The time in seconds since the first iteration.
+    """
     start = time.time()
     while True:
         yield time.time() - start
 
 
 def timeout(iterable, timeout):
-    """Timeout the iteration of an iterable."""
+    """Timeout the iteration of an iterable.
+
+    Args:
+        iterable: An iterable
+        timeout (int): Seconds after which the iteration should timeout.
+
+    Yields:
+        Elements from the provided iterable.
+    """
     timed = zip(iterable, timer())
     for e, t in timed:
-        if t < timeout:
-            yield e
-        else:
-            return e
+        yield e
+        if t >= timeout:
+            break
 
 
 def print_help_and_exit(exit_code=0):
-    """Print usage and exit."""
+    """Print usage and exit.
+
+    Args:
+        exit_code (int): The code with which to exit.
+    """
     print(__doc__)
     sys.exit(exit_code)
 
 
 def parse_args(args):
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Args:
+        args (list): Command line arguments.
+
+    Returns:
+        tuple (str, dict): The file path and a dictionary of options.
+
+    Raises:
+        FileNotFoundError: The file name provided does not exist.
+    """
     try:
         fpath = args[0]
         if not os.path.isfile(fpath):
@@ -104,7 +130,7 @@ def load_data(fpath):
 
 
 def clean(records):
-    """Add derived data to records"""
+    """Add derived data to records."""
 
     def derive(r):
         p, c, f = map(float, [r["protein"], r["carbs"], r["fat"]])
@@ -122,7 +148,7 @@ def clean(records):
 
 
 def combine(records, n):
-    """Create all possible combinations"""
+    """Create all possible combinations."""
     recs = list(sorted(records, key=lambda x: x["kcal"], reverse=True))
     # Intersperse high with low calorie foods, allow for more diverse
     # combinations to occurr earlier.
@@ -137,8 +163,7 @@ def combine(records, n):
 
 
 def totals(meals):
-    """Get the total macros and other statistics of the
-    meal plan."""
+    """Get the total macros and other statistics of the meal plan."""
     macros = {k: rnd(sum(m[k] for m in meals)) for k in {"p", "f", "c"}}
     kcal = calories(**macros)
 
@@ -171,19 +196,23 @@ class Range:
     """Numeric range."""
 
     def __init__(self, start=None, stop=None):
+        """Initialize a new range."""
         self.start = start
         self.stop = stop
 
     def __repr__(self):
+        """Return repr."""
         return "Range(start=%s, stop=%s)" % (self.start, self.stop)
 
     def __contains__(self, item):
+        """Return true if value is in range."""
         return (self.start is None or item >= self.start) and (
             self.stop is None or item <= self.stop
         )
 
     @classmethod
     def parse(cls, s):
+        """Parse a string specification into a range."""
         return Range(*(None if not p else float(p) for p in s.split(":")))
 
 
@@ -191,7 +220,7 @@ def predicates(options):
     """Create predicates from the supplied options."""
 
     def make_predicate(key, range):
-        """Make a range predicate"""
+        """Make a range predicate."""
         return lambda x: x[key] in range
 
     ranges = {
@@ -214,6 +243,7 @@ def matches(plans, criteria):
 
 
 def main():
+    """Run meal planner."""
     args = sys.argv[1:]
     if not args or "-h" in args or "--help" in args:
         print_help_and_exit(0 if args else 1)
